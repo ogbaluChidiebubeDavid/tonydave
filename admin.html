@@ -34,6 +34,7 @@
             background: rgba(0, 0, 0, 0.3);
             color: #f1f1f1;
             font-size: 16px;
+            box-sizing: border-box;
         }
         .form-group textarea {
             min-height: 100px;
@@ -117,6 +118,35 @@
         .back-link:hover {
             color: #f1f1f1;
         }
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+        }
+        .logout-btn {
+            padding: 8px 16px;
+            background: transparent;
+            color: #656566;
+            border: 1px solid #656566;
+            border-radius: 5px;
+            cursor: pointer;
+            float: right;
+        }
+        .logout-btn:hover {
+            color: #f1f1f1;
+            border-color: #f1f1f1;
+        }
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        #loginSection, #adminSection {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -134,8 +164,23 @@
         </div>
     </header>
 
-    <div class="admin-container">
-        <a href="project.html" class="back-link"><i class="fas fa-arrow-left"></i> Back to Projects</a>
+    <div id="loginSection" class="login-container">
+        <h1 class="admin-title">Admin Login</h1>
+        <div id="loginMessage"></div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required placeholder="Enter admin password">
+            </div>
+            <button type="submit" class="submit-btn">Login</button>
+        </form>
+    </div>
+
+    <div id="adminSection" class="admin-container">
+        <div class="header-actions">
+            <a href="project.html" class="back-link"><i class="fas fa-arrow-left"></i> Back to Projects</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
         <h1 class="admin-title">Add New Work</h1>
         
         <div id="message"></div>
@@ -169,7 +214,7 @@
             
             <div class="form-group">
                 <label for="image">Preview Image</label>
-                <input type="file" id="image" name="image" accept="image/*" required>
+                <input type="file" id="image" name="image" accept="image/png, image/jpeg, image/gif, image/webp" required>
             </div>
             
             <button type="submit" class="submit-btn">Add Work</button>
@@ -182,6 +227,47 @@
     </div>
 
     <script>
+        async function checkAuth() {
+            const response = await fetch('/api/auth-status');
+            const data = await response.json();
+            if (data.authenticated) {
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('adminSection').style.display = 'block';
+                loadItems();
+            } else {
+                document.getElementById('loginSection').style.display = 'block';
+                document.getElementById('adminSection').style.display = 'none';
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                
+                if (response.ok) {
+                    checkAuth();
+                } else {
+                    document.getElementById('loginMessage').innerHTML = 
+                        '<div class="message error">Invalid password</div>';
+                }
+            } catch (err) {
+                document.getElementById('loginMessage').innerHTML = 
+                    '<div class="message error">An error occurred</div>';
+            }
+        });
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            checkAuth();
+        }
+
         async function loadItems() {
             const response = await fetch('/api/items');
             const items = await response.json();
@@ -212,7 +298,8 @@
                 showMessage('Work deleted successfully!', 'success');
                 loadItems();
             } else {
-                showMessage('Failed to delete work.', 'error');
+                const error = await response.json();
+                showMessage(error.error || 'Failed to delete work.', 'error');
             }
         }
 
@@ -246,7 +333,7 @@
             }
         });
 
-        loadItems();
+        checkAuth();
     </script>
 </body>
 </html>

@@ -1,17 +1,36 @@
 import os
-from flask import Flask, render_template, request, jsonify, redirect, url_for, send_from_directory
+import secrets
+from functools import wraps
+from flask import Flask, render_template, request, jsonify, redirect, url_for, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.utils import secure_filename
 from datetime import datetime
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.secret_key = os.environ.get('SESSION_SECRET', secrets.token_hex(32))
+
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 db = SQLAlchemy(app)
 
 if not os.path.exists('uploads'):
     os.makedirs('uploads')
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            return jsonify({'error': 'Unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 class PortfolioItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -58,7 +77,25 @@ def admin():
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    return send_from_directory('uploads', filename)
+    safe_filename = secure_filename(filename)
+    return send_from_directory('uploads', safe_filename)
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    if data and data.get('password') == ADMIN_PASSWORD:
+        session['admin_logged_in'] = True
+        return jsonify({'success': True})
+    return jsonify({'error': 'Invalid password'}), 401
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    session.pop('admin_logged_in', None)
+    return jsonify({'success': True})
+
+@app.route('/api/auth-status')
+def auth_status():
+    return jsonify({'authenticated': session.get('admin_logged_in', False)})
 
 @app.route('/api/items', methods=['GET'])
 def get_items():
@@ -66,6 +103,7 @@ def get_items():
     return jsonify([item.to_dict() for item in items])
 
 @app.route('/api/items', methods=['POST'])
+@admin_required
 def create_item():
     if 'image' not in request.files:
         return jsonify({'error': 'No image uploaded'}), 400
@@ -74,7 +112,11 @@ def create_item():
     if file.filename == '':
         return jsonify({'error': 'No image selected'}), 400
     
-    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Invalid file type. Allowed: png, jpg, jpeg, gif, webp'}), 400
+    
+    original_filename = secure_filename(file.filename)
+    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{original_filename}"
     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
     
     item = PortfolioItem(
@@ -90,6 +132,7 @@ def create_item():
     return jsonify(item.to_dict()), 201
 
 @app.route('/api/items/<int:id>', methods=['DELETE'])
+@admin_required
 def delete_item(id):
     item = PortfolioItem.query.get_or_404(id)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], item.image_filename)
