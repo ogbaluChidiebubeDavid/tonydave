@@ -4,9 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href=
-    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
-    <title>Tech Savy Tonydave</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <title>Projects - Tech Savy Tonydave</title>
+    <style>
+        .add-work-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: #656566;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #f1f1f1;
+            font-size: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s, background 0.3s;
+            z-index: 100;
+        }
+        .add-work-btn:hover {
+            transform: scale(1.1);
+            background: #858586;
+        }
+        .empty-message {
+            text-align: center;
+            color: #f1f1f1;
+            font-size: 18px;
+            padding: 50px 20px;
+        }
+        .card-link {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            height: 100%;
+        }
+        .card {
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -24,62 +66,117 @@
     </header>
     <div class="body">
         <div class="wrapper">
-            <i id="left" class="fa-solid  fas fa-angle-left"></i>
-            <ul class="carousel">
-                <li class="card">
-                    <div class="img">
-                        <img src="media/Tech-Savy-Tonydave.png" alt="" draggable="false"> 
-                    </div>
-                    <h2 style="font-weight:bold;">
-                        Test Portfolio Website
-                    </h2>
-                    <span>Personal Project</span>
-                    <a href="#">View</a>
-                </li>
-                <li class="card">
-                    <div class="img">
-                        <img src="media/Tech-Savy-Tonydave.png" alt="" draggable="false"> 
-                    </div>
-                    <h2 style="font-weight:bold;">Test Portfolio Website</h2>
-                    <span>Personal Project</span>
-                    <a href="#">View</a>
-                </li>
-                <li class="card">
-                    <div class="img">
-                        <img src="media/Tech-Savy-Tonydave.png" alt="" draggable="false"> 
-                    </div>
-                    <h2 style="font-weight:bold;">Test Portfolio Website</h2>
-                    <span>Personal Project</span>
-                    <a href="#">View</a>
-                </li>
-                <li class="card">
-                    <div class="img">
-                        <img src="media/Tech-Savy-Tonydave.png" alt="" draggable="false"> 
-                    </div>
-                    <h2 style="font-weight:bold;">Test Portfolio Website</h2>
-                    <span>Personal Project</span>
-                    <a href="#">View</a>
-                </li>
-                <li class="card">
-                    <div class="img">
-                        <img src="media/Tech-Savy-Tonydave.png" alt="" draggable="false"> 
-                    </div>
-                    <h2 style="font-weight:bold;">Test Portfolio Website</h2>
-                    <span>Personal Project</span>
-                    <a href="#">View</a>
-                </li>
-                <li class="card">
-                    <div class="img">
-                        <img src="media/Tech-Savy-Tonydave.png" alt="" draggable="false"> 
-                    </div>
-                    <h2 style="font-weight:bold;">Test Portfolio Website</h2>
-                    <span>Personal Project</span>
-                    <a href="#">View</a>
-                </li>
+            <i id="left" class="fa-solid fas fa-angle-left"></i>
+            <ul class="carousel" id="carousel">
             </ul>
             <i id="right" class="fa-solid fas fa-angle-right"></i>
         </div>
     </div>
+    
+    <a href="/admin" class="add-work-btn" title="Add New Work">
+        <i class="fas fa-plus"></i>
+    </a>
+
+    <script>
+        async function loadProjects() {
+            const carousel = document.getElementById('carousel');
+            
+            try {
+                const response = await fetch('/api/items');
+                const items = await response.json();
+                
+                if (items.length === 0) {
+                    carousel.innerHTML = `
+                        <li class="card">
+                            <div class="empty-message">
+                                <p>No works added yet.</p>
+                                <p>Click the + button to add your first work!</p>
+                            </div>
+                        </li>
+                    `;
+                    return;
+                }
+                
+                carousel.innerHTML = items.map(item => `
+                    <li class="card">
+                        <a href="${item.link}" target="_blank" class="card-link" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <div class="img">
+                                <img src="${item.image_url}" alt="${item.title}" draggable="false"> 
+                            </div>
+                            <h2 style="font-weight:bold;">${item.title}</h2>
+                            <span>${item.category}</span>
+                        </a>
+                    </li>
+                `).join('');
+                
+                initCarousel();
+            } catch (error) {
+                carousel.innerHTML = `
+                    <li class="card">
+                        <div class="empty-message">
+                            <p>Failed to load works.</p>
+                        </div>
+                    </li>
+                `;
+            }
+        }
+
+        function initCarousel() {
+            const carousel = document.querySelector(".carousel");
+            const arrowBtns = document.querySelectorAll(".wrapper i");
+            const wrapper = document.querySelector(".wrapper");
+            
+            const firstCard = carousel.querySelector(".card");
+            if (!firstCard) return;
+            
+            const firstCardWidth = firstCard.offsetWidth;
+
+            let isDragging = false, startX, startScrollLeft, timeoutId;
+
+            const dragStart = (e) => { 
+                isDragging = true;
+                carousel.classList.add("dragging");
+                startX = e.pageX;
+                startScrollLeft = carousel.scrollLeft;
+            };
+
+            const dragging = (e) => {
+                if (!isDragging) return;
+                const newScrollLeft = startScrollLeft - (e.pageX - startX);
+                if (newScrollLeft <= 0 || newScrollLeft >= carousel.scrollWidth - carousel.offsetWidth) {
+                    isDragging = false;
+                    return;
+                }
+                carousel.scrollLeft = newScrollLeft;
+            };
+
+            const dragStop = () => {
+                isDragging = false; 
+                carousel.classList.remove("dragging");
+            };
+
+            const autoPlay = () => {
+                if (window.innerWidth < 800) return; 
+                const totalCardWidth = carousel.scrollWidth;
+                const maxScrollLeft = totalCardWidth - carousel.offsetWidth;
+                if (carousel.scrollLeft >= maxScrollLeft) return;
+                timeoutId = setTimeout(() => carousel.scrollLeft += firstCardWidth, 2500);
+            };
+
+            carousel.addEventListener("mousedown", dragStart);
+            carousel.addEventListener("mousemove", dragging);
+            document.addEventListener("mouseup", dragStop);
+            wrapper.addEventListener("mouseenter", () => clearTimeout(timeoutId));
+            wrapper.addEventListener("mouseleave", autoPlay);
+
+            arrowBtns.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    carousel.scrollLeft += btn.id === "left" ? -firstCardWidth : firstCardWidth;
+                });
+            });
+        }
+
+        loadProjects();
+    </script>
 </body>
-<script type="text/javascript" src="index.js"></script>
 </html>
