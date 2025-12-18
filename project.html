@@ -73,11 +73,21 @@
         </div>
     </div>
     
-    <a href="/admin" class="add-work-btn" title="Add New Work">
+    <a href="/admin" class="add-work-btn" id="addWorkBtn" title="Add New Work" style="display: none;">
         <i class="fas fa-plus"></i>
     </a>
 
     <script>
+        async function checkAdminStatus() {
+            try {
+                const response = await fetch('/api/auth-status');
+                const data = await response.json();
+                if (data.authenticated) {
+                    document.getElementById('addWorkBtn').style.display = 'flex';
+                }
+            } catch (e) {}
+        }
+        checkAdminStatus();
         async function loadProjects() {
             const carousel = document.getElementById('carousel');
             
@@ -99,12 +109,13 @@
                 
                 carousel.innerHTML = items.map(item => `
                     <li class="card">
-                        <a href="${item.link}" target="_blank" class="card-link" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <a href="${item.link}" target="_blank" class="card-link" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px;">
                             <div class="img">
                                 <img src="${item.image_url}" alt="${item.title}" draggable="false"> 
                             </div>
-                            <h2 style="font-weight:bold;">${item.title}</h2>
-                            <span>${item.category}</span>
+                            <h2 style="font-weight:bold; font-size: 1.1rem; margin: 10px 0 5px;">${item.title}</h2>
+                            <span style="font-size: 0.85rem;">${item.category}</span>
+                            <p style="font-size: 0.8rem; color: #999; text-align: center; margin-top: 8px; line-height: 1.3;">${item.description.length > 60 ? item.description.substring(0, 60) + '...' : item.description}</p>
                         </a>
                     </li>
                 `).join('');
