@@ -9,10 +9,14 @@ window.addEventListener('load', function(){
 
 document.addEventListener("DOMContentLoaded", function() {
     const carousel = document.querySelector(".carousel");
+    if (!carousel) return;
+
     const arrowBtns = document.querySelectorAll(".wrapper i");
     const wrapper = document.querySelector(".wrapper");
 
     const firstCard = carousel.querySelector(".card");
+    if (!firstCard) return;
+
     const firstCardWidth = firstCard.offsetWidth;
 
     let isDragging = false,
